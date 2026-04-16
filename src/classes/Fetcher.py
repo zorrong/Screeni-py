@@ -15,15 +15,7 @@ import datetime
 import yfinance as yf
 import pandas as pd
 import ccxt
-try:
-    from vnstock import Vnstock
-    listing_companies = None
-except ImportError:
-    Vnstock = None
-    try:
-        from vnstock import listing_companies
-    except ImportError:
-        listing_companies = None
+import json
 from classes.ColorText import colorText
 from classes.SuppressOutput import SuppressOutput
 from classes.Utility import isDocker
@@ -91,22 +83,12 @@ class tools:
     def fetchCodes(self, tickerOption,proxyServer=None):
         listStockCodes = []
         if tickerOption == 12: # ALL Vietnam Stocks
-            if Vnstock is not None:
-                try:
-                    v = Vnstock()
-                    df = v.stock().listing()
-                    return df['ticker'].tolist()
-                except Exception as e:
-                    print(f"Error fetching stock codes (Vnstock 3.x): {e}")
-                    return []
-            elif listing_companies is not None:
-                try:
-                    df = listing_companies()
-                    return df['ticker'].tolist()
-                except Exception as e:
-                    print(f"Error fetching stock codes (vnstock 0.x): {e}")
-                    return []
-            else:
+            try:
+                # Use local JSON list saved from DNSE/vnstock previously
+                with open(os.path.join(os.path.dirname(__file__), 'vietnam_stocks.json'), 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading vietnam_stocks.json: {e}")
                 return []
         if tickerOption == 16:
             return self.getAllNiftyIndices()
