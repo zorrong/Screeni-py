@@ -1,7 +1,10 @@
 #!/bin/bash
 variable_name="SCREENIPY_GUI"
 
-cd src
+# Activate virtual environment
+source "$(dirname "$0")/venv/bin/activate"
+
+cd "$(dirname "$0")/src"
 
 # Check if the script was provided with at least one argument
 if [ $# -lt 1 ]; then

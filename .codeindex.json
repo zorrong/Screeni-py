@@ -1,0 +1,5 @@
+{
+  "provider": "openai",
+  "model": "codeindex",
+  "indexDir": ".index"
+}

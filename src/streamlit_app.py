@@ -65,8 +65,8 @@ isDevVersion, guiUpdateMessage = None, None
 
 @st.cache_data(ttl='1h', show_spinner=False)
 def check_updates():
-  isDevVersion, guiUpdateMessage = OTAUpdater.checkForUpdate(proxyServer, VERSION)
-  return isDevVersion, guiUpdateMessage
+  # isDevVersion, guiUpdateMessage = OTAUpdater.checkForUpdate(proxyServer, VERSION)
+  return None, ""
 
 isDevVersion, guiUpdateMessage = check_updates()
 

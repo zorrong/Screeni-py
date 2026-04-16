@@ -14,6 +14,8 @@ import os
 import datetime
 import yfinance as yf
 import pandas as pd
+import ccxt
+from vnstock import listing_companies, stock_historical_data
 from nsetools import Nse
 from classes.ColorText import colorText
 from classes.SuppressOutput import SuppressOutput
@@ -126,6 +128,24 @@ class tools:
             return ["MMM", "ABT", "ABBV", "ABMD", "ACN", "ATVI", "ADBE", "AMD", "AAP", "AES", "AFL", "A", "APD", "AKAM", "ALK", "ALB", "ARE", "ALXN", "ALGN", "ALLE", "AGN", "ADS", "LNT", "ALL", "GOOGL", "GOOG", "MO", "AMZN", "AMCR", "AEE", "AAL", "AEP", "AXP", "AIG", "AMT", "AWK", "AMP", "ABC", "AME", "AMGN", "APH", "ADI", "ANSS", "ANTM", "AON", "AOS", "APA", "AIV", "AAPL", "AMAT", "APTV", "ADM", "ARNC", "ANET", "AJG", "AIZ", "ATO", "T", "ADSK", "ADP", "AZO", "AVB", "AVY", "BKR", "BLL", "BAC", "BK", "BAX", "BDX", "BRK.B", "BBY", "BIIB", "BLK", "BA", "BKNG", "BWA", "BXP", "BSX", "BMY", "AVGO", "BR", "BF.B", "CHRW", "COG", "CDNS", "CPB", "COF", "CPRI", "CAH", "KMX", "CCL", "CAT", "CBOE", "CBRE", "CDW", "CE", "CNC", "CNP", "CTL", "CERN", "CF", "SCHW", "CHTR", "CVX", "CMG", "CB", "CHD", "CI", "XEC", "CINF", "CTAS", "CSCO", "C", "CFG", "CTXS", "CLX", "CME", "CMS", "KO", "CTSH", "CL", "CMCSA", "CMA", "CAG", "CXO", "COP", "ED", "STZ", "COO", "CPRT", "GLW", "CTVA", "COST", "COTY", "CCI", "CSX", "CMI", "CVS", "DHI", "DHR", "DRI", "DVA", "DE", "DAL", "XRAY", "DVN", "FANG", "DLR", "DFS", "DISCA", "DISCK", "DISH", "DG", "DLTR", "D", "DOV", "DOW", "DTE", "DUK", "DRE", "DD", "DXC", "ETFC", "EMN", "ETN", "EBAY", "ECL", "EIX", "EW", "EA", "EMR", "ETR", "EOG", "EFX", "EQIX", "EQR", "ESS", "EL", "EVRG", "ES", "RE", "EXC", "EXPE", "EXPD", "EXR", "XOM", "FFIV", "FB", "FAST", "FRT", "FDX", "FIS", "FITB", "FE", "FRC", "FISV", "FLT", "FLIR", "FLS", "FMC", "F", "FTNT", "FTV", "FBHS", "FOXA", "FOX", "BEN", "FCX", "GPS", "GRMN", "IT", "GD", "GE", "GIS", "GM", "GPC", "GILD", "GL", "GPN", "GS", "GWW", "HRB", "HAL", "HBI", "HOG", "HIG", "HAS", "HCA", "PEAK", "HP", "HSIC", "HSY", "HES", "HPE", "HLT", "HFC", "HOLX", "HD", "HON", "HRL", "HST", "HPQ", "HUM", "HBAN", "HII", "IEX", "IDXX", "INFO", "ITW", "ILMN", "IR", "INTC", "ICE", "IBM", "INCY", "IP", "IPG", "IFF", "INTU", "ISRG", "IVZ", "IPGP", "IQV", "IRM", "JKHY", "J", "JBHT", "SJM", "JNJ", "JCI", "JPM", "JNPR", "KSU", "K", "KEY", "KEYS", "KMB", "KIM", "KMI", "KLAC", "KSS", "KHC", "KR", "LB", "LHX", "LH", "LRCX", "LW", "LVS", "LEG", "LDOS", "LEN", "LLY", "LNC", "LIN", "LYV", "LKQ", "LMT", "L", "LOW", "LYB", "MTB", "M", "MRO", "MPC", "MKTX", "MAR", "MMC", "MLM", "MAS", "MA", "MKC", "MXIM", "MCD", "MCK", "MDT", "MRK", "MET", "MTD", "MGM", "MCHP", "MU", "MSFT", "MAA", "MHK", "TAP", "MDLZ", "MNST", "MCO", "MS", "MOS", "MSI", "MSCI", "MYL", "NDAQ", "NOV", "NTAP", "NFLX", "NWL", "NEM", "NWSA", "NWS", "NEE", "NLSN", "NKE", "NI", "NBL", "JWN", "NSC", "NTRS", "NOC", "NLOK", "NCLH", "NRG", "NUE", "NVDA", "NVR", "ORLY", "OXY", "ODFL", "OMC", "OKE", "ORCL", "PCAR", "PKG", "PH", "PAYX", "PYPL", "PNR", "PBCT", "PEP", "PKI", "PRGO", "PFE", "PM", "PSX", "PNW", "PXD", "PNC", "PPG", "PPL", "PFG", "PG", "PGR", "PLD", "PRU", "PEG", "PSA", "PHM", "PVH", "QRVO", "PWR", "QCOM", "DGX", "RL", "RJF", "RTN", "O", "REG", "REGN", "RF", "RSG", "RMD", "RHI", "ROK", "ROL", "ROP", "ROST", "RCL", "SPGI", "CRM", "SBAC", "SLB", "STX", "SEE", "SRE", "NOW", "SHW", "SPG", "SWKS", "SLG", "SNA", "SO", "LUV", "SWK", "SBUX", "STT", "STE", "SYK", "SIVB", "SYF", "SNPS", "SYY", "TMUS", "TROW", "TTWO", "TPR", "TGT", "TEL", "FTI", "TFX", "TXN", "TXT", "TMO", "TIF", "TJX", "TSCO", "TDG", "TRV", "TFC", "TWTR", "TSN", "UDR", "ULTA", "USB", "UAA", "UA", "UNP", "UAL", "UNH", "UPS", "URI", "UTX", "UHS", "UNM", "VFC", "VLO", "VAR", "VTR", "VRSN", "VRSK", "VZ", "VRTX", "VIAC", "V", "VNO", "VMC", "WRB", "WAB", "WMT", "WBA", "DIS", "WM", "WAT", "WEC", "WCG", "WFC", "WELL", "WDC", "WU", "WRK", "WY", "WHR", "WMB", "WLTW", "WYNN", "XEL", "XRX", "XLNX", "XYL", "YUM", "ZBRA", "ZBH", "ZION", "ZTS"]
         if tickerOption == 16:
             return self.getAllNiftyIndices()
+        if tickerOption == 17:
+            try:
+                # vnstock
+                df = listing_companies()
+                return list(df['ticker'].values)
+            except Exception as e:
+                print(e)
+                return []
+        if tickerOption == 18:
+            try:
+                # ccxt - binance top pairs
+                exchange = ccxt.binance()
+                markets = exchange.load_markets()
+                symbols = [symbol for symbol in markets if symbol.endswith('/USDT')]
+                return symbols
+            except Exception as e:
+                print(e)
+                return []
         tickerMapping = {
             1: "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
             2: "https://archives.nseindia.com/content/indices/ind_niftynext50list.csv",
@@ -209,20 +229,52 @@ class tools:
     def fetchStockData(self, stockCode, period, duration, proxyServer, screenResultsCounter, screenCounter, totalSymbols, backtestDate=None, printCounter=False, tickerOption=None):
         dateDict = None
         with SuppressOutput(suppress_stdout=True, suppress_stderr=True):
-            append_exchange = ".NS"
-            if tickerOption == 15 or tickerOption == 16:
-                append_exchange = ""
-            data = yf.download(
-                tickers=stockCode + append_exchange,
-                period=period,
-                interval=duration,
-                proxy=proxyServer,
-                progress=False,
-                timeout=10,
-                start=self._getBacktestDate(backtest=backtestDate)[0],
-                end=self._getBacktestDate(backtest=backtestDate)[1],
-                auto_adjust=False
-            )
+            if tickerOption == 17:
+                try:
+                    dates = self._getBacktestDate(backtest=backtestDate)
+                    start_str = dates[0].strftime('%Y-%m-%d')
+                    end_str = dates[1].strftime('%Y-%m-%d')
+                    data = stock_historical_data(stockCode, start_str, end_str, resolution='1D', type='stock')
+                    if data is not None and not data.empty:
+                        data = data.rename(columns={'tradingDate': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'})
+                        data['Adj Close'] = data['Close']
+                        data['Date'] = pd.to_datetime(data['Date'])
+                        data.set_index('Date', inplace=True)
+                    else:
+                        data = pd.DataFrame()
+                except Exception as e:
+                    data = pd.DataFrame()
+
+            elif tickerOption == 18:
+                try:
+                    exchange = ccxt.binance()
+                    timeframe = '1d'
+                    if 'm' in duration: timeframe = duration
+                    elif 'h' in duration: timeframe = duration
+                    
+                    ohlcv = exchange.fetch_ohlcv(stockCode, timeframe, limit=1000)
+                    data = pd.DataFrame(ohlcv, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
+                    data['Date'] = pd.to_datetime(data['Date'], unit='ms')
+                    data['Adj Close'] = data['Close']
+                    data.set_index('Date', inplace=True)
+                except Exception as e:
+                    data = pd.DataFrame()
+
+            else:
+                append_exchange = ".NS"
+                if tickerOption == 15 or tickerOption == 16:
+                    append_exchange = ""
+                data = yf.download(
+                    tickers=stockCode + append_exchange,
+                    period=period,
+                    interval=duration,
+                    proxy=proxyServer,
+                    progress=False,
+                    timeout=10,
+                    start=self._getBacktestDate(backtest=backtestDate)[0],
+                    end=self._getBacktestDate(backtest=backtestDate)[1],
+                    auto_adjust=False
+                )
             # For df backward compatibility towards yfinance 0.2.32
             data = self.makeDataBackwardCompatible(data)
             # end

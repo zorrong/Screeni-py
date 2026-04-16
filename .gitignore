@@ -11,3 +11,5 @@ results*.pkl
 .DS_Store
 .history/
 *.code-workspace
+# codeindex
+.index/
