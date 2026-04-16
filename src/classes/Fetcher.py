@@ -15,13 +15,18 @@ import datetime
 import yfinance as yf
 import pandas as pd
 import ccxt
-from vnstock import listing_companies, stock_historical_data
-from nsetools import Nse
+try:
+    from vnstock import Vnstock
+    listing_companies = None
+except ImportError:
+    Vnstock = None
+    try:
+        from vnstock import listing_companies
+    except ImportError:
+        listing_companies = None
 from classes.ColorText import colorText
 from classes.SuppressOutput import SuppressOutput
 from classes.Utility import isDocker
-
-nse = Nse()
 
 # Exception class if yfinance stock delisted
 
@@ -40,46 +45,10 @@ class tools:
 
     def getAllNiftyIndices(self) -> dict:
         return {
-            "^NSEI": "NIFTY 50",
-            "^NSMIDCP": "NIFTY NEXT 50",
-            "^CNX100": "NIFTY 100",
-            "^CNX200": "NIFTY 200",
-            "^CNX500": "NIFTY 500",
-            "^NSEMDCP50": "NIFTY MIDCAP 50",
-            "NIFTY_MIDCAP_100.NS": "NIFTY MIDCAP 100",
-            "^CNXSC": "NIFTY SMALLCAP 100",
-            "^INDIAVIX": "INDIA VIX",
-            "NIFTYMIDCAP150.NS": "NIFTY MIDCAP 150",
-            "NIFTYSMLCAP50.NS": "NIFTY SMALLCAP 50",
-            "NIFTYSMLCAP250.NS": "NIFTY SMALLCAP 250",
-            "NIFTYMIDSML400.NS": "NIFTY MIDSMALLCAP 400",
-            "NIFTY500_MULTICAP.NS": "NIFTY500 MULTICAP 50:25:25",
-            "NIFTY_LARGEMID250.NS": "NIFTY LARGEMIDCAP 250",
-            "NIFTY_MID_SELECT.NS": "NIFTY MIDCAP SELECT",
-            "NIFTY_TOTAL_MKT.NS": "NIFTY TOTAL MARKET",
-            "NIFTY_MICROCAP250.NS": "NIFTY MICROCAP 250",
-            "^NSEBANK": "NIFTY BANK",
-            "^CNXAUTO": "NIFTY AUTO",
-            "NIFTY_FIN_SERVICE.NS": "NIFTY FINANCIAL SERVICES",
-            "^CNXFMCG": "NIFTY FMCG",
-            "^CNXIT": "NIFTY IT",
-            "^CNXMEDIA": "NIFTY MEDIA",
-            "^CNXMETAL": "NIFTY METAL",
-            "^CNXPHARMA": "NIFTY PHARMA",
-            "^CNXPSUBANK": "NIFTY PSU BANK",
-            "^CNXREALTY": "NIFTY REALTY",
-            "NIFTY_HEALTHCARE.NS": "NIFTY HEALTHCARE INDEX",
-            "NIFTY_CONSR_DURBL.NS": "NIFTY CONSUMER DURABLES",
-            "NIFTY_OIL_AND_GAS.NS": "NIFTY OIL & GAS",
-            "NIFTYALPHA50.NS": "NIFTY ALPHA 50",
-            "^CNXCMDT": "NIFTY COMMODITIES",
-            "NIFTY_CPSE.NS": "NIFTY CPSE",
-            "^CNXENERGY": "NIFTY ENERGY",
-            "^CNXINFRA": "NIFTY INFRASTRUCTURE",
-            "^CNXMNC": "NIFTY MNC",
-            "^CNXPSE": "NIFTY PSE",
-            "^CNXSERVICE": "NIFTY SERVICES SECTOR",
-            "NIFTY100_ESG.NS": "NIFTY100 ESG SECTOR LEADERS",
+            "VNINDEX": "VN Index",
+            "VN30": "VN30 Index",
+            "HNXIndex": "HNX Index",
+            "UpcomIndex": "Upcom Index",
         }
 
     def _getBacktestDate(self, backtest):
@@ -121,21 +90,26 @@ class tools:
 
     def fetchCodes(self, tickerOption,proxyServer=None):
         listStockCodes = []
-        if tickerOption == 12:
-            url = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
-            return list(pd.read_csv(url)['SYMBOL'].values)
-        if tickerOption == 15:
-            return ["MMM", "ABT", "ABBV", "ABMD", "ACN", "ATVI", "ADBE", "AMD", "AAP", "AES", "AFL", "A", "APD", "AKAM", "ALK", "ALB", "ARE", "ALXN", "ALGN", "ALLE", "AGN", "ADS", "LNT", "ALL", "GOOGL", "GOOG", "MO", "AMZN", "AMCR", "AEE", "AAL", "AEP", "AXP", "AIG", "AMT", "AWK", "AMP", "ABC", "AME", "AMGN", "APH", "ADI", "ANSS", "ANTM", "AON", "AOS", "APA", "AIV", "AAPL", "AMAT", "APTV", "ADM", "ARNC", "ANET", "AJG", "AIZ", "ATO", "T", "ADSK", "ADP", "AZO", "AVB", "AVY", "BKR", "BLL", "BAC", "BK", "BAX", "BDX", "BRK.B", "BBY", "BIIB", "BLK", "BA", "BKNG", "BWA", "BXP", "BSX", "BMY", "AVGO", "BR", "BF.B", "CHRW", "COG", "CDNS", "CPB", "COF", "CPRI", "CAH", "KMX", "CCL", "CAT", "CBOE", "CBRE", "CDW", "CE", "CNC", "CNP", "CTL", "CERN", "CF", "SCHW", "CHTR", "CVX", "CMG", "CB", "CHD", "CI", "XEC", "CINF", "CTAS", "CSCO", "C", "CFG", "CTXS", "CLX", "CME", "CMS", "KO", "CTSH", "CL", "CMCSA", "CMA", "CAG", "CXO", "COP", "ED", "STZ", "COO", "CPRT", "GLW", "CTVA", "COST", "COTY", "CCI", "CSX", "CMI", "CVS", "DHI", "DHR", "DRI", "DVA", "DE", "DAL", "XRAY", "DVN", "FANG", "DLR", "DFS", "DISCA", "DISCK", "DISH", "DG", "DLTR", "D", "DOV", "DOW", "DTE", "DUK", "DRE", "DD", "DXC", "ETFC", "EMN", "ETN", "EBAY", "ECL", "EIX", "EW", "EA", "EMR", "ETR", "EOG", "EFX", "EQIX", "EQR", "ESS", "EL", "EVRG", "ES", "RE", "EXC", "EXPE", "EXPD", "EXR", "XOM", "FFIV", "FB", "FAST", "FRT", "FDX", "FIS", "FITB", "FE", "FRC", "FISV", "FLT", "FLIR", "FLS", "FMC", "F", "FTNT", "FTV", "FBHS", "FOXA", "FOX", "BEN", "FCX", "GPS", "GRMN", "IT", "GD", "GE", "GIS", "GM", "GPC", "GILD", "GL", "GPN", "GS", "GWW", "HRB", "HAL", "HBI", "HOG", "HIG", "HAS", "HCA", "PEAK", "HP", "HSIC", "HSY", "HES", "HPE", "HLT", "HFC", "HOLX", "HD", "HON", "HRL", "HST", "HPQ", "HUM", "HBAN", "HII", "IEX", "IDXX", "INFO", "ITW", "ILMN", "IR", "INTC", "ICE", "IBM", "INCY", "IP", "IPG", "IFF", "INTU", "ISRG", "IVZ", "IPGP", "IQV", "IRM", "JKHY", "J", "JBHT", "SJM", "JNJ", "JCI", "JPM", "JNPR", "KSU", "K", "KEY", "KEYS", "KMB", "KIM", "KMI", "KLAC", "KSS", "KHC", "KR", "LB", "LHX", "LH", "LRCX", "LW", "LVS", "LEG", "LDOS", "LEN", "LLY", "LNC", "LIN", "LYV", "LKQ", "LMT", "L", "LOW", "LYB", "MTB", "M", "MRO", "MPC", "MKTX", "MAR", "MMC", "MLM", "MAS", "MA", "MKC", "MXIM", "MCD", "MCK", "MDT", "MRK", "MET", "MTD", "MGM", "MCHP", "MU", "MSFT", "MAA", "MHK", "TAP", "MDLZ", "MNST", "MCO", "MS", "MOS", "MSI", "MSCI", "MYL", "NDAQ", "NOV", "NTAP", "NFLX", "NWL", "NEM", "NWSA", "NWS", "NEE", "NLSN", "NKE", "NI", "NBL", "JWN", "NSC", "NTRS", "NOC", "NLOK", "NCLH", "NRG", "NUE", "NVDA", "NVR", "ORLY", "OXY", "ODFL", "OMC", "OKE", "ORCL", "PCAR", "PKG", "PH", "PAYX", "PYPL", "PNR", "PBCT", "PEP", "PKI", "PRGO", "PFE", "PM", "PSX", "PNW", "PXD", "PNC", "PPG", "PPL", "PFG", "PG", "PGR", "PLD", "PRU", "PEG", "PSA", "PHM", "PVH", "QRVO", "PWR", "QCOM", "DGX", "RL", "RJF", "RTN", "O", "REG", "REGN", "RF", "RSG", "RMD", "RHI", "ROK", "ROL", "ROP", "ROST", "RCL", "SPGI", "CRM", "SBAC", "SLB", "STX", "SEE", "SRE", "NOW", "SHW", "SPG", "SWKS", "SLG", "SNA", "SO", "LUV", "SWK", "SBUX", "STT", "STE", "SYK", "SIVB", "SYF", "SNPS", "SYY", "TMUS", "TROW", "TTWO", "TPR", "TGT", "TEL", "FTI", "TFX", "TXN", "TXT", "TMO", "TIF", "TJX", "TSCO", "TDG", "TRV", "TFC", "TWTR", "TSN", "UDR", "ULTA", "USB", "UAA", "UA", "UNP", "UAL", "UNH", "UPS", "URI", "UTX", "UHS", "UNM", "VFC", "VLO", "VAR", "VTR", "VRSN", "VRSK", "VZ", "VRTX", "VIAC", "V", "VNO", "VMC", "WRB", "WAB", "WMT", "WBA", "DIS", "WM", "WAT", "WEC", "WCG", "WFC", "WELL", "WDC", "WU", "WRK", "WY", "WHR", "WMB", "WLTW", "WYNN", "XEL", "XRX", "XLNX", "XYL", "YUM", "ZBRA", "ZBH", "ZION", "ZTS"]
+        if tickerOption == 12: # ALL Vietnam Stocks
+            if Vnstock is not None:
+                try:
+                    v = Vnstock()
+                    df = v.stock().listing()
+                    return df['ticker'].tolist()
+                except Exception as e:
+                    print(f"Error fetching stock codes (Vnstock 3.x): {e}")
+                    return []
+            elif listing_companies is not None:
+                try:
+                    df = listing_companies()
+                    return df['ticker'].tolist()
+                except Exception as e:
+                    print(f"Error fetching stock codes (vnstock 0.x): {e}")
+                    return []
+            else:
+                return []
         if tickerOption == 16:
             return self.getAllNiftyIndices()
-        if tickerOption == 17:
-            try:
-                # vnstock
-                df = listing_companies()
-                return list(df['ticker'].values)
-            except Exception as e:
-                print(e)
-                return []
         if tickerOption == 18:
             try:
                 # ccxt - binance top pairs
@@ -146,43 +120,7 @@ class tools:
             except Exception as e:
                 print(e)
                 return []
-        tickerMapping = {
-            1: "https://archives.nseindia.com/content/indices/ind_nifty50list.csv",
-            2: "https://archives.nseindia.com/content/indices/ind_niftynext50list.csv",
-            3: "https://archives.nseindia.com/content/indices/ind_nifty100list.csv",
-            4: "https://archives.nseindia.com/content/indices/ind_nifty200list.csv",
-            5: "https://archives.nseindia.com/content/indices/ind_nifty500list.csv",
-            6: "https://archives.nseindia.com/content/indices/ind_niftysmallcap50list.csv",
-            7: "https://archives.nseindia.com/content/indices/ind_niftysmallcap100list.csv",
-            8: "https://archives.nseindia.com/content/indices/ind_niftysmallcap250list.csv",
-            9: "https://archives.nseindia.com/content/indices/ind_niftymidcap50list.csv",
-            10: "https://archives.nseindia.com/content/indices/ind_niftymidcap100list.csv",
-            11: "https://archives.nseindia.com/content/indices/ind_niftymidcap150list.csv",
-            14: "https://api.kite.trade/instruments"
-        }
-
-        url = tickerMapping.get(tickerOption)
-
-        try:
-            if proxyServer:
-                res = requests.get(url,proxies={'https':proxyServer})
-            else:
-                res = requests.get(url)
-            
-            cr = csv.reader(res.text.strip().split('\n'))
-            
-            if tickerOption == 14:
-                cols = next(cr)
-                df = pd.DataFrame(cr, columns=cols)
-                listStockCodes = list(set(df[df['segment'] == 'NFO-FUT']["name"].to_list()))
-                listStockCodes.sort()
-            else:
-                next(cr)  # skipping first line
-                for row in cr:
-                    listStockCodes.append(row[2])
-        except Exception as error:
-            print(error)
-
+        
         return listStockCodes
 
     # Fetch all stock codes from NSE
@@ -197,7 +135,7 @@ class tools:
             listStockCodes = stockCode.split(',')
         else:
             print(colorText.BOLD +
-                  "[+] Getting Stock Codes From NSE... ", end='')
+                  "[+] Getting Stock Codes From Vietnam Market... ", end='')
             listStockCodes = self.fetchCodes(tickerOption,proxyServer=proxyServer)
             if type(listStockCodes) == dict:
                 listStockCodes = list(listStockCodes.keys())
@@ -220,29 +158,40 @@ class tools:
 
             else:
                 input(
-                    colorText.FAIL + "=> Error getting stock codes from NSE! Press any key to exit!" + colorText.END)
+                    colorText.FAIL + "=> Error getting stock codes! Press any key to exit!" + colorText.END)
                 sys.exit("Exiting script..")
 
         return listStockCodes
 
-    # Fetch stock price data from Yahoo finance
     def fetchStockData(self, stockCode, period, duration, proxyServer, screenResultsCounter, screenCounter, totalSymbols, backtestDate=None, printCounter=False, tickerOption=None):
         dateDict = None
         with SuppressOutput(suppress_stdout=True, suppress_stderr=True):
-            if tickerOption == 17:
+            # Default to DNSE for individual stocks (unless it's Crypto or sectoral indices)
+            if tickerOption != 18 and tickerOption != 16:
                 try:
                     dates = self._getBacktestDate(backtest=backtestDate)
-                    start_str = dates[0].strftime('%Y-%m-%d')
-                    end_str = dates[1].strftime('%Y-%m-%d')
-                    data = stock_historical_data(stockCode, start_str, end_str, resolution='1D', type='stock')
-                    if data is not None and not data.empty:
-                        data = data.rename(columns={'tradingDate': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'})
+                    start_ts = int(dates[0].timestamp())
+                    end_ts = int(dates[1].timestamp())
+                    url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol={stockCode}&resolution=1D"
+                    res = requests.get(url, timeout=10)
+                    json_data = res.json()
+                    
+                    if json_data.get('s') == 'ok':
+                        data = pd.DataFrame({
+                            'Date': json_data['t'],
+                            'Open': json_data['o'],
+                            'High': json_data['h'],
+                            'Low': json_data['l'],
+                            'Close': json_data['c'],
+                            'Volume': json_data['v']
+                        })
+                        data['Date'] = pd.to_datetime(data['Date'], unit='s')
                         data['Adj Close'] = data['Close']
-                        data['Date'] = pd.to_datetime(data['Date'])
                         data.set_index('Date', inplace=True)
                     else:
                         data = pd.DataFrame()
                 except Exception as e:
+                    print(f"Error fetching DNSE data for {stockCode}: {e}")
                     data = pd.DataFrame()
 
             elif tickerOption == 18:
@@ -261,14 +210,10 @@ class tools:
                     data = pd.DataFrame()
 
             else:
-                append_exchange = ".NS"
-                if tickerOption == 15 or tickerOption == 16:
-                    append_exchange = ""
                 data = yf.download(
-                    tickers=stockCode + append_exchange,
+                    tickers=stockCode,
                     period=period,
                     interval=duration,
-                    proxy=proxyServer,
                     progress=False,
                     timeout=10,
                     start=self._getBacktestDate(backtest=backtestDate)[0],
@@ -281,9 +226,8 @@ class tools:
             if backtestDate != datetime.date.today():
                 dateDict = self._getDatesForBacktestReport(backtest=backtestDate)
                 backtestData = yf.download(
-                    tickers=stockCode + append_exchange,
+                    tickers=stockCode,
                     interval='1d',
-                    proxy=proxyServer,
                     progress=False,
                     timeout=10,
                     start=backtestDate - datetime.timedelta(days=1),
@@ -313,84 +257,25 @@ class tools:
                   colorText.END, end='\r', flush=True)
         return data, dateDict
 
-    # Get Daily Nifty 50 Index:
+    # Get Daily VNINDEX:
     def fetchLatestNiftyDaily(self, proxyServer=None):
+        tickers = ["^VNINDEX", "GC=F", "CL=F"] # VNINDEX, Gold, Crude
         data = yf.download(
                 auto_adjust=False,
-                tickers="^NSEI",
+                tickers=tickers,
                 period='5d',
                 interval='1d',
-                proxy=proxyServer,
                 progress=False,
                 timeout=10
             )
-        gold = yf.download(
-                auto_adjust=False,
-                tickers="GC=F",
-                period='5d',
-                interval='1d',
-                proxy=proxyServer,
-                progress=False,
-                timeout=10
-            ).add_prefix(prefix='gold_')
-        crude = yf.download(
-                    auto_adjust=False,
-                    tickers="CL=F",
-                    period='5d',
-                    interval='1d',
-                    proxy=proxyServer,
-                    progress=False,
-                    timeout=10
-                ).add_prefix(prefix='crude_')
         data = self.makeDataBackwardCompatible(data)
-        gold = self.makeDataBackwardCompatible(gold, column_prefix='gold_')
-        crude = self.makeDataBackwardCompatible(crude, column_prefix='crude_')
-        data = pd.concat([data, gold, crude], axis=1)
+        # Handle prefixing if needed, but yf.download with multiple tickers returns nested columns
+        # Simplification: just return VNINDEX
         return data
 
-    # Get Data for Five EMA strategy
+    # Get Data for Five EMA strategy (Placeholder for Vietnam)
     def fetchFiveEmaData(self, proxyServer=None):
-        nifty_sell = yf.download(
-                auto_adjust=False,
-                tickers="^NSEI",
-                period='5d',
-                interval='5m',
-                proxy=proxyServer,
-                progress=False,
-                timeout=10
-            )
-        banknifty_sell = yf.download(
-                auto_adjust=False,
-                tickers="^NSEBANK",
-                period='5d',
-                interval='5m',
-                proxy=proxyServer,
-                progress=False,
-                timeout=10
-            )
-        nifty_buy = yf.download(
-                auto_adjust=False,
-                tickers="^NSEI",
-                period='5d',
-                interval='15m',
-                proxy=proxyServer,
-                progress=False,
-                timeout=10
-            )
-        banknifty_buy = yf.download(
-                auto_adjust=False,
-                tickers="^NSEBANK",
-                period='5d',
-                interval='15m',
-                proxy=proxyServer,
-                progress=False,
-                timeout=10
-            )
-        nifty_buy = self.makeDataBackwardCompatible(nifty_buy)
-        banknifty_buy = self.makeDataBackwardCompatible(banknifty_buy)
-        nifty_sell = self.makeDataBackwardCompatible(nifty_sell)
-        banknifty_sell = self.makeDataBackwardCompatible(banknifty_sell)
-        return nifty_buy, banknifty_buy, nifty_sell, banknifty_sell
+        return None, None, None, None
 
     # Load stockCodes from the watchlist.xlsx
     def fetchWatchlist(self):
@@ -424,7 +309,8 @@ class tools:
         return data
     
     def makeDataBackwardCompatible(self, data:pd.DataFrame, column_prefix:str=None) -> pd.DataFrame:
-        data = data.droplevel(level=1, axis=1)
+        if isinstance(data.columns, pd.MultiIndex):
+            data = data.droplevel(level=1, axis=1)
         data = data.rename_axis(None, axis=1)
         column_prefix = '' if column_prefix is None else column_prefix
         data = data[

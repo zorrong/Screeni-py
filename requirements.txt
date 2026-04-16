@@ -7,7 +7,6 @@ distlib
 distro
 html5lib
 lockfile
-nsetools
 openpyxl
 pep517
 pip
@@ -30,7 +29,6 @@ attrs # Installed as dependency for pytest
 certifi # Installed as dependency for requests
 chardet # Installed as dependency for requests
 colorama # Installed as dependency for pytest
-dateutils # Installed as dependency for nsetools
 et-xmlfile # Installed as dependency for openpyxl
 future # Installed as dependency for pefile
 idna # Installed as dependency for requests
@@ -51,7 +49,7 @@ pytz # Installed as dependency for dateutils, pandas
 pywin32-ctypes # Installed as dependency for pyinstaller
 requests # Installed as dependency for yfinance, cachecontrol
 setuptools # Installed as dependency for pyinstaller
-six # Installed as dependency for cycler, nsetools, packaging, retrying, python-dateutil, html5lib
+six # Installed as dependency for cycler, packaging, retrying, python-dateutil, html5lib
 toml # Installed as dependency for pep517, pytest
 urllib3 # Installed as dependency for requests
 webencodings # Installed as dependency for html5lib

@@ -93,21 +93,14 @@ def show_df_as_result_table():
         type='secondary',
         use_container_width=True
     )       
-    if type(execute_inputs[0]) == str or int(execute_inputs[0]) < 15:
-      df.index = df.index.map(lambda x: "https://in.tradingview.com/chart?symbol=NSE%3A" + x)
+    if int(execute_inputs[0]) == 12 or int(execute_inputs[0]) == 17:
+      df.index = df.index.map(lambda x: "https://www.tradingview.com/chart/?symbol=HOSE%3A" + x)
       df.index = df.index.map(lambda x: f'<a href="{x}" target="_blank">{x.split("%3A")[-1]}</a>')
     elif execute_inputs[0] == '16':
-      try:
-        fetcher = Fetcher.tools(configManager=ConfigManager.tools())
-        url_dict_reversed = {key.replace('^','').replace('.NS',''): value for key, value in fetcher.getAllNiftyIndices().items()}
-        url_dict_reversed = {v: k for k, v in url_dict_reversed.items()}
-        df.index = df.index.map(lambda x: "https://in.tradingview.com/chart?symbol=NSE%3A" + url_dict_reversed[x])
-        url_dict_reversed = {v: k for k, v in url_dict_reversed.items()}
-        df.index = df.index.map(lambda x: f'<a href="{x}" target="_blank">{url_dict_reversed[x.split("%3A")[-1]]}</a>')
-      except KeyError:
-         pass
+      df.index = df.index.map(lambda x: "https://www.tradingview.com/chart/?symbol=" + x)
+      df.index = df.index.map(lambda x: f'<a href="{x}" target="_blank">{x.split("=")[-1]}</a>')
     else:
-      df.index = df.index.map(lambda x: "https://in.tradingview.com/chart?symbol=" + x)
+      df.index = df.index.map(lambda x: "https://www.tradingview.com/chart/?symbol=" + x)
       df.index = df.index.map(lambda x: f'<a href="{x}" target="_blank">{x.split("=")[-1]}</a>')
     df['Stock'] = df.index
     stock_column = df.pop('Stock')  # Remove 'Age' column and store it separately
@@ -225,9 +218,9 @@ def nifty_predict(col):
           proxyServer=proxyServer
       )
   if 'BULLISH' in trend:
-      col.success(f'Market may Open **Gap Up** next day!\n\nProbability/Strength of Prediction = {confidence}%', icon='📈')
+      col.success(f'Market may Open **Green** next day!\n\nProbability/Strength of Prediction = {confidence}%', icon='📈')
   elif 'BEARISH' in trend:
-      col.error(f'Market may Open **Gap Down** next day!\n\nProbability/Strength of Prediction = {confidence}%', icon='📉')
+      col.error(f'Market may Open **Red** next day!\n\nProbability/Strength of Prediction = {confidence}%', icon='📉')
   else:
       col.info("Couldn't determine the Trend. Try again later!")
   col.warning('The AI prediction should be executed After 3 PM or Around the Closing hours as the Prediction Accuracy is based on the Closing price!\n\nThis is Just a Statistical Prediction and There are Chances of **False** Predictions!', icon='⚠️')
@@ -253,7 +246,7 @@ def get_extra_inputs(tickerOption, executeOption, c_index=None, c_criteria=None,
     if not tickerOption.isnumeric():
         execute_inputs = [tickerOption, 0, 'N']
     elif int(tickerOption) == 0 or tickerOption is None:
-        stock_codes:str = c_index.text_input('Enter Stock Code(s)', placeholder='SBIN, INFY, ITC')
+        stock_codes:str = c_index.text_input('Enter Stock Code(s)', placeholder='HPG, TCB, VNM')
         execute_inputs = [tickerOption, executeOption, stock_codes.upper(), 'N']
         return
     elif int(executeOption) >= 0 and int(executeOption) < 4:
@@ -372,26 +365,10 @@ with tab_screen:
           unsafe_allow_html=True)
 
   list_index = [
-    'All Stocks (Default)',
-    # 'W > Screen stocks from my own Watchlist',
-    # 'N > Nifty Prediction using Artifical Intelligence (Use for Gap-Up/Gap-Down/BTST/STBT)',
-    # 'E > Live Index Scan : 5 EMA for Intraday',
-    '0 > By Stock Names (NSE Stock Code)',
-    '1 > Nifty 50',
-    '2 > Nifty Next 50',
-    '3 > Nifty 100',
-    '4 > Nifty 200',
-    '5 > Nifty 500',
-    '6 > Nifty Smallcap 50',
-    '7 > Nifty Smallcap 100',
-    '8 > Nifty Smallcap 250',
-    '9 > Nifty Midcap 50',
-    '10 > Nifty Midcap 100',
-    '11 > Nifty Midcap 150',
-    '13 > Newly Listed (IPOs in last 2 Year)',
-    '14 > F&O Stocks Only',
-    '15 > US S&P 500',
-    '16 > Sectoral Indices (NSE)'
+    'All Vietnam Stocks (Default)',
+    '0 > By Stock Names (Vietnam Stock Code)',
+    '16 > Vietnam Sectoral Indices',
+    '18 > Crypto (CCXT)'
   ]
 
   list_criteria = [
@@ -486,7 +463,7 @@ with tab_config:
 with tab_nifty:
     ac, bc = st.columns([9,1])
 
-    ac.subheader('🧠 AI-based prediction for Next Day Nifty-50 Gap Up / Gap Down')
+    ac.subheader('🧠 AI-based prediction for Next Day VNINDEX Gap Up / Gap Down')
     bc.button('**Predict**', type='primary', on_click=nifty_predict, args=(ac,), use_container_width=True)
 
 with tab_similar:

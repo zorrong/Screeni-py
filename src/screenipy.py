@@ -89,18 +89,14 @@ def initExecution():
           '[+] Select an Index for Screening: ' + colorText.END)
     print(colorText.BOLD + '''
      W > Screen stocks from my own Watchlist
-     N > Nifty Prediction using Artifical Intelligence (Use for Gap-Up/Gap-Down/BTST/STBT)
-     E > Live Index Scan : 5 EMA for Intraday
+     N > VNINDEX Prediction using Artifical Intelligence
      S > Search for Similar Stocks (forming Similar Chart Pattern)
 
-     0 > Screen stocks by the stock names (NSE Stock Code)
-     1 > Nifty 50               2 > Nifty Next 50           3 > Nifty 100
-     4 > Nifty 200              5 > Nifty 500               6 > Nifty Smallcap 50
-     7 > Nifty Smallcap 100     8 > Nifty Smallcap 250      9 > Nifty Midcap 50
-    10 > Nifty Midcap 100      11 > Nifty Midcap 150       13 > Newly Listed (IPOs in last 2 Year)
-    14 > F&O Stocks Only       15 > US S&P 500             16 > Sectoral Indices (NSE)
-    17 > Vietnam Stocks        18 > Crypto (CCXT)
-    Enter > All Stocks (default) ''' + colorText.END
+     0 > Screen stocks by the stock names (Vietnam Stock Code)
+    12 > All Vietnam Stocks (Default)
+    16 > Vietnam Sectoral Indices
+    18 > Crypto (CCXT)
+    Enter > All Vietnam Stocks ''' + colorText.END
           )
     try:
         tickerOption = input(
@@ -115,9 +111,6 @@ def initExecution():
             tickerOption = int(tickerOption)
             if(tickerOption < 0 or tickerOption > 18):
                 raise ValueError
-            elif tickerOption == 13:
-                newlyListedOnly = True
-                tickerOption = 12
     except KeyboardInterrupt:
         raise KeyboardInterrupt
     except Exception as e:
@@ -210,9 +203,6 @@ def main(testing=False, testBuild=False, downloadOnly=False, execute_inputs:list
                         listStockCodes = stockCode.split(',')
                 except:
                     tickerOption, executeOption = str(execute_inputs[0]), int(execute_inputs[1])
-                if tickerOption == 13:
-                    newlyListedOnly = True
-                    tickerOption = 12
             else:
                 tickerOption, executeOption = initExecution()
         except KeyboardInterrupt:
