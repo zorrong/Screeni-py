@@ -453,7 +453,7 @@ def main(testing=False, testBuild=False, downloadOnly=False, execute_inputs:list
 
         if CHROMA_AVAILABLE and type(vectorSearch) == list and vectorSearch[2]:
             chroma_client = chromadb.PersistentClient(path=CHROMADB_PATH)
-            collection = chroma_client.get_collection(name="nse_stocks")
+            collection = chroma_client.get_or_create_collection(name="vn_stocks")
             query_embeddings= collection.get(ids = [stockCode], include=["embeddings"])["embeddings"]
             results = collection.query(
                 query_embeddings=query_embeddings,

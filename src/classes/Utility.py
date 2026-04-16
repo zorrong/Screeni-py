@@ -99,38 +99,40 @@ class tools:
                   '[+] Failed to load recently screened result table from disk! Skipping..' + colorText.END)
 
     def isTradingTime():
-        curr = datetime.datetime.now(pytz.timezone('Asia/Kolkata'))
-        openTime = curr.replace(hour=9, minute=15)
-        closeTime = curr.replace(hour=15, minute=30)
+        curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
+        openTime = curr.replace(hour=9, minute=0)
+        closeTime = curr.replace(hour=15, minute=0)
         return ((openTime <= curr <= closeTime) and (0 <= curr.weekday() <= 4))
 
     def isClosingHour():
-        curr = datetime.datetime.now(pytz.timezone('Asia/Kolkata'))
+        curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
         openTime = curr.replace(hour=15, minute=00)
         closeTime = curr.replace(hour=15, minute=30)
         return ((openTime <= curr <= closeTime) and (0 <= curr.weekday() <= 4))
 
     def saveStockData(stockDict, configManager, loadCount):
-        curr = datetime.datetime.now(pytz.timezone('Asia/Kolkata'))
-        openTime = curr.replace(hour=9, minute=15)
+        curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
+        openTime = curr.replace(hour=9, minute=0)
         cache_date = datetime.date.today()  # for monday to friday
         weekday = datetime.date.today().weekday()
-        if curr < openTime:  # for monday to friday before 9:15
+        if curr < openTime:  # for monday to friday before 9:00
             cache_date = datetime.datetime.today() - datetime.timedelta(1)
-        if weekday == 0 and curr < openTime:  # for monday before 9:15
+        if weekday == 0 and curr < openTime:  # for monday before 9:00
             cache_date = datetime.datetime.today() - datetime.timedelta(3)
         if weekday == 5 or weekday == 6:  # for saturday and sunday
             cache_date = datetime.datetime.today() - datetime.timedelta(days=weekday - 4)
         cache_date = cache_date.strftime("%d%m%y")
-        cache_file = "stock_data_" + str(cache_date) + ".pkl"
-        configManager.deleteStockData(excludeFile=cache_file)
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', 'stock_data_140823.pkl')
+        # configManager.deleteStockData(excludeFile=cache_file)
 
         if not os.path.exists(cache_file) or len(stockDict) > (loadCount+1):
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(cache_file), exist_ok=True)
             with open(cache_file, 'wb') as f:
                 try:
                     pickle.dump(stockDict.copy(), f)
                     print(colorText.BOLD + colorText.GREEN +
-                          "=> Done." + colorText.END)
+                          f"=> Done. Saved to {cache_file}" + colorText.END)
                 except pickle.PicklingError:
                     print(colorText.BOLD + colorText.FAIL +
                           "=> Error while Caching Stock Data." + colorText.END)
@@ -139,18 +141,17 @@ class tools:
                   "=> Already Cached." + colorText.END)
 
     def loadStockData(stockDict, configManager, proxyServer=None):
-        curr = datetime.datetime.now(pytz.timezone('Asia/Kolkata'))
-        openTime = curr.replace(hour=9, minute=15)
+        curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
+        openTime = curr.replace(hour=9, minute=0)
         last_cached_date = datetime.date.today()  # for monday to friday after 3:30
         weekday = datetime.date.today().weekday()
-        if curr < openTime:  # for monday to friday before 9:15
+        if curr < openTime:  # for monday to friday before 9:00
             last_cached_date = datetime.datetime.today() - datetime.timedelta(1)
         if weekday == 5 or weekday == 6:  # for saturday and sunday
             last_cached_date = datetime.datetime.today() - datetime.timedelta(days=weekday - 4)
-        if weekday == 0 and curr < openTime:  # for monday before 9:15
+        if weekday == 0 and curr < openTime:  # for monday before 9:00
             last_cached_date = datetime.datetime.today() - datetime.timedelta(3)
-        last_cached_date = last_cached_date.strftime("%d%m%y")
-        cache_file = "stock_data_" + str(last_cached_date) + ".pkl"
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', 'stock_data_140823.pkl')
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as f:
                 try:
@@ -166,37 +167,9 @@ class tools:
                     print(colorText.BOLD + colorText.FAIL +
                           "[+] Stock Cache Corrupted." + colorText.END)
         elif ConfigManager.default_period == configManager.period and ConfigManager.default_duration == configManager.duration:
-            cache_url = "https://raw.github.com/pranjal-joshi/Screeni-py/actions-data-download/actions-data-download/" + cache_file
-            if proxyServer is not None:
-                resp = requests.get(cache_url, stream=True, proxies={'https':proxyServer})
-            else:
-                resp = requests.get(cache_url, stream=True)
-            if resp.status_code == 200:
-                print(colorText.BOLD + colorText.FAIL +
-                      "[+] After-Market Stock Data is not cached.." + colorText.END)
-                print(colorText.BOLD + colorText.GREEN +
-                      "[+] Downloading cache from Screenipy server for faster processing, Please Wait.." + colorText.END)
-                try:
-                    chunksize = 1024*1024*1
-                    filesize = int(int(resp.headers.get('content-length'))/chunksize)
-                    bar, spinner = tools.getProgressbarStyle()
-                    f = open(cache_file, 'wb')
-                    dl = 0
-                    with alive_bar(filesize, bar=bar, spinner=spinner, manual=True) as progressbar:
-                        for data in resp.iter_content(chunk_size=chunksize):
-                            dl += 1
-                            f.write(data)
-                            progressbar(dl/filesize)
-                            if dl >= filesize:
-                                progressbar(1.0)
-                    f.close()
-                except Exception as e:
-                    print("[!] Download Error - " + str(e))
-                print("")
-                tools.loadStockData(stockDict, configManager, proxyServer)
-            else:
-                print(colorText.BOLD + colorText.FAIL +
-                      "[+] Cache unavailable on Screenipy server, Continuing.." + colorText.END)
+            # Disable Indian cache download for Vietnam-focused app
+            print(colorText.BOLD + colorText.FAIL +
+                  "[+] Local Cache unavailable, fetching fresh data from DNSE..." + colorText.END)
 
     # Save screened results to excel
     def promptSaveResults(df):

@@ -152,8 +152,12 @@ class tools:
             if tickerOption != 18 and tickerOption != 16:
                 try:
                     dates = self._getBacktestDate(backtest=backtestDate)
-                    start_ts = int(dates[0].timestamp())
-                    end_ts = int(dates[1].timestamp())
+                    # Convert date to datetime to get timestamp
+                    import datetime as dt
+                    start_dt = dt.datetime.combine(dates[0], dt.time.min)
+                    end_dt = dt.datetime.combine(dates[1], dt.time.max)
+                    start_ts = int(start_dt.timestamp())
+                    end_ts = int(end_dt.timestamp())
                     url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol={stockCode}&resolution=1D"
                     res = requests.get(url, timeout=10)
                     json_data = res.json()
@@ -173,7 +177,7 @@ class tools:
                     else:
                         data = pd.DataFrame()
                 except Exception as e:
-                    print(f"Error fetching DNSE data for {stockCode}: {e}")
+                    # print(f"Error fetching DNSE data for {stockCode}: {e}")
                     data = pd.DataFrame()
 
             elif tickerOption == 18:
@@ -291,18 +295,23 @@ class tools:
         return data
     
     def makeDataBackwardCompatible(self, data:pd.DataFrame, column_prefix:str=None) -> pd.DataFrame:
+        if data is None or data.empty:
+            return pd.DataFrame(columns=['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'])
+            
         if isinstance(data.columns, pd.MultiIndex):
             data = data.droplevel(level=1, axis=1)
         data = data.rename_axis(None, axis=1)
+        
         column_prefix = '' if column_prefix is None else column_prefix
-        data = data[
-            [
-                f'{column_prefix}Open', 
-                f'{column_prefix}High', 
-                f'{column_prefix}Low', 
-                f'{column_prefix}Close', 
-                f'{column_prefix}Adj Close', 
-                f'{column_prefix}Volume'
-            ]
-        ]
-        return data
+        
+        # Ensure columns exist with prefix
+        required = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+        for col in required:
+            col_name = f'{column_prefix}{col}'
+            if col_name not in data.columns:
+                if col == 'Adj Close' and f'{column_prefix}Close' in data.columns:
+                    data[col_name] = data[f'{column_prefix}Close']
+                else:
+                    data[col_name] = 0.0
+                    
+        return data[[f'{column_prefix}{col}' for col in required]]

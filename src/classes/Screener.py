@@ -741,7 +741,7 @@ class tools:
         data = data[(-4 * daysToLookback):]     # Keep only OHLC * daysToLookback samples
         if len(data) == (4 * daysToLookback):
             chroma_client = chromadb.PersistentClient(path="./chromadb_store/")
-            collection = chroma_client.get_or_create_collection(name="nse_stocks")
+            collection = chroma_client.get_or_create_collection(name="vn_stocks")
             collection.upsert(
                 embeddings=[data],
                 documents=[stockCode],
