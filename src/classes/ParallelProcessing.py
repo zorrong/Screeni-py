@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import pytz
 import traceback
 from queue import Empty

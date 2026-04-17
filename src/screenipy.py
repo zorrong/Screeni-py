@@ -454,15 +454,19 @@ def main(testing=False, testBuild=False, downloadOnly=False, execute_inputs:list
         if CHROMA_AVAILABLE and type(vectorSearch) == list and vectorSearch[2]:
             chroma_client = chromadb.PersistentClient(path=CHROMADB_PATH)
             collection = chroma_client.get_or_create_collection(name="vn_stocks")
-            query_embeddings= collection.get(ids = [stockCode], include=["embeddings"])["embeddings"]
-            results = collection.query(
-                query_embeddings=query_embeddings,
-                n_results=4
-            )['ids'][0]
-            try:
-                results.remove(stockCode)
-            except ValueError:
-                pass
+            query_embeddings_data = collection.get(ids = [stockCode], include=["embeddings"])["embeddings"]
+            if query_embeddings_data and len(query_embeddings_data) > 0:
+                query_embeddings = query_embeddings_data
+                results = collection.query(
+                    query_embeddings=query_embeddings,
+                    n_results=4
+                )['ids'][0]
+                try:
+                    results.remove(stockCode)
+                except ValueError:
+                    pass
+            else:
+                results = []
             matchedScreenResults, matchedSaveResults = pd.DataFrame(columns=screenResults.columns), pd.DataFrame(columns=saveResults.columns)
             for stk in results:
                 matchedScreenResults = pd.concat([matchedScreenResults, screenResults[screenResults['Stock'].str.contains(stk)]], ignore_index=True)

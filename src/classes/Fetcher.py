@@ -20,6 +20,10 @@ from classes.ColorText import colorText
 from classes.SuppressOutput import SuppressOutput
 from classes.Utility import isDocker
 
+# Suppress SSL warnings
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 # Exception class if yfinance stock delisted
 
 
@@ -272,19 +276,84 @@ class tools:
 
     # Get Daily VNINDEX:
     def fetchLatestNiftyDaily(self, proxyServer=None):
-        tickers = ["^VNINDEX", "GC=F", "CL=F"] # VNINDEX, Gold, Crude
-        data = yf.download(
-                auto_adjust=False,
-                tickers=tickers,
-                period='5d',
-                interval='1d',
-                progress=False,
-                timeout=10
-            )
-        data = self.makeDataBackwardCompatible(data)
-        # Handle prefixing if needed, but yf.download with multiple tickers returns nested columns
-        # Simplification: just return VNINDEX
-        return data
+        import datetime as dt
+        # 1. Fetch VNINDEX from DNSE (OHLC)
+        df_vn = pd.DataFrame()
+        try:
+            end_ts = int(dt.datetime.now().timestamp())
+            start_ts = end_ts - (86400 * 40) # 40 days
+            url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol=VNINDEX&resolution=1D"
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            res = requests.get(url, headers=headers, timeout=10, verify=False)
+            if res.status_code == 200:
+                json_data = res.json()
+                if 't' in json_data:
+                    df_vn = pd.DataFrame({
+                        'Date': json_data['t'],
+                        'Open': json_data['o'],
+                        'High': json_data['h'],
+                        'Low': json_data['l'],
+                        'Close': json_data['c'],
+                        'Adj Close': json_data['c'],
+                        'Volume': json_data['v']
+                    })
+                    df_vn['Date'] = pd.to_datetime(df_vn['Date'], unit='s').dt.date
+                    df_vn.set_index('Date', inplace=True)
+        except Exception as e:
+            print(f"Error fetching VNINDEX from DNSE: {e}")
+
+        # 2. Fetch Gold and Crude from Yahoo
+        df_gold = pd.DataFrame()
+        df_crude = pd.DataFrame()
+        try:
+            df_commodities = yf.download(["GC=F", "CL=F"], period='40d', interval='1d', progress=False)
+            if not df_commodities.empty:
+                # Force flatten multiindex if exists
+                if isinstance(df_commodities.columns, pd.MultiIndex):
+                    # Extract Close values safely
+                    try:
+                        g_data = df_commodities.xs('GC=F', level=1, axis=1)['Close']
+                        df_gold = pd.DataFrame({'gold_Close': g_data})
+                    except: pass
+                    try:
+                        c_data = df_commodities.xs('CL=F', level=1, axis=1)['Close']
+                        df_crude = pd.DataFrame({'crude_Close': c_data})
+                    except: pass
+                else:
+                    # Single ticker or unusual structure
+                    if 'Close' in df_commodities.columns:
+                        df_gold = df_commodities[['Close']].rename(columns={'Close': 'gold_Close'})
+                
+                if not df_gold.empty: df_gold.index = df_gold.index.date
+                if not df_crude.empty: df_crude.index = df_crude.index.date
+        except Exception as e:
+            pass
+
+        # 3. Merge and Ensure Columns
+        if not df_vn.empty:
+            final_df = df_vn.copy()
+            # Ensure index is not a MultiIndex and has no name conflicts
+            final_df.index.name = 'Date'
+            
+            if not df_gold.empty:
+                final_df = final_df.merge(df_gold, left_index=True, right_index=True, how='left')
+            if not df_crude.empty:
+                final_df = final_df.merge(df_crude, left_index=True, right_index=True, how='left')
+            
+            # Ensure all string column names
+            final_df.columns = [str(c) for c in final_df.columns]
+            
+            # Ensure AI-required columns exist (Standard Nifty model needs these)
+            required = ['Open', 'High', 'Low', 'Close', 'gold_Close', 'crude_Close']
+            for col in required:
+                if col not in final_df.columns:
+                    final_df[col] = final_df['Close'] if 'Close' in final_df.columns else 0.0
+                
+            final_df.ffill(inplace=True)
+            final_df.bfill(inplace=True)
+            return final_df
+        
+        return pd.DataFrame()
 
     # Get Data for Five EMA strategy (Placeholder for Vietnam)
     def fetchFiveEmaData(self, proxyServer=None):

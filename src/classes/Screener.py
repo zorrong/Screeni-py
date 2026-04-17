@@ -75,7 +75,7 @@ class tools:
         # data = data.fillna(0)
         # data = data.replace([np.inf, -np.inf], 0)
         fullData = data
-        trimmedData = data.head(daysToLookback)
+        trimmedData = data.head(int(daysToLookback))
         return (fullData, trimmedData)
 
     # Validate LTP within limits
@@ -383,14 +383,14 @@ class tools:
             data = data.head(3)
             for row in data.iterrows():
                 # All 3 candles should be Green and NOT Circuits
-                if row[1]['Close'].item() <= row[1]['Open'].item():
+                if row[1]['Close'] <= row[1]['Open']:
                     return False
             openDesc = data.sort_values(by=['Open'], ascending=False)
             closeDesc = data.sort_values(by=['Close'], ascending=False)
             volDesc = data.sort_values(by=['Volume'], ascending=False)
             try:
                 if data.equals(openDesc) and data.equals(closeDesc) and data.equals(volDesc):
-                    if (data['Open'].iloc[0].item() >= data['Close'].iloc[1].item()) and (data['Open'].iloc[1].item() >= data['Close'].iloc[2].item()):
+                    if (data['Open'].iloc[0] >= data['Close'].iloc[1]) and (data['Open'].iloc[1] >= data['Close'].iloc[2]):
                         screenDict['Pattern'] = colorText.BOLD + colorText.GREEN + 'Momentum Gainer' + colorText.END
                         saveDict['Pattern'] = 'Momentum Gainer'
                         return True
@@ -564,6 +564,8 @@ class tools:
     # Validate Lorentzian Classification signal  
     def validateLorentzian(self, data, screenDict, saveDict, lookFor=1):
         # lookFor: 1-Any, 2-Buy, 3-Sell
+        if len(data) < 30:
+            return False
         data = data[::-1]               # Reverse the dataframe
         data = data.rename(columns={'Open':'open', 'Close':'close', 'High':'high', 'Low':'low', 'Volume':'volume'})
         lc = LorentzianClassification(data=data)
@@ -632,6 +634,15 @@ class tools:
           pass
         #
         model, pkl = Utility.tools.getNiftyModel(proxyServer=proxyServer)
+        if data.empty:
+            print(colorText.BOLD + colorText.FAIL + "[!] Error: Data for VNINDEX prediction is empty!" + colorText.END)
+            return None
+        
+        # Ensure all required columns exist in data
+        for col in pkl['columns']:
+            if col not in data.columns:
+                data[col] = data['Close'] if 'Close' in data.columns else 0.0
+                
         datacopy = copy(data[pkl['columns']])
         with SuppressOutput(suppress_stderr=True, suppress_stdout=True):
             data = data[pkl['columns']]
