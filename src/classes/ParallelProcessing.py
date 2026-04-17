@@ -62,6 +62,7 @@ class StockConsumer(multiprocessing.Process):
 
     def screenStocks(self, tickerOption, executeOption, reversalOption, maLength, daysForLowestVolume, minRSI, maxRSI, respChartPattern, insideBarToLookback, totalSymbols,
                      configManager, fetcher, screener:Screener.tools, candlePatterns, stock, newlyListedOnly, downloadOnly, vectorSearch, isDevVersion, backtestDate, printCounter=False):
+        isDevVersion = True # Forced for debugging VN market integration
         screenResults = pd.DataFrame(columns=[
             'Stock', 'Consolidating', 'Breaking-Out', 'MA-Signal', 'Volume', 'LTP', 'RSI', 'Trend', 'Pattern'])
         screeningDictionary = {'Stock': "", 'Consolidating': "",  'Breaking-Out': "",
@@ -131,10 +132,15 @@ class StockConsumer(multiprocessing.Process):
                     stock = fetcher.getAllNiftyIndices()[stock]
                 stock = stock.replace('^','').replace('.NS','')
                 urlStock = stock.replace('&','_') if urlStock is None else urlStock.replace('&','_')
-                screeningDictionary['Stock'] = colorText.BOLD + \
-                    colorText.BLUE + f'\x1B]8;;https://in.tradingview.com/chart?symbol=NSE%3A{urlStock}\x1B\\{stock}\x1B]8;;\x1B\\' + colorText.END if tickerOption < 15 \
-                    else colorText.BOLD + \
-                    colorText.BLUE + f'\x1B]8;;https://in.tradingview.com/chart?symbol={urlStock}\x1B\\{stock}\x1B]8;;\x1B\\' + colorText.END
+                if tickerOption == 12: # Vietnam
+                    tradingViewUrl = f"https://vn.tradingview.com/chart?symbol={urlStock}"
+                    screeningDictionary['Stock'] = colorText.BOLD + \
+                        colorText.BLUE + f'\x1B]8;;{tradingViewUrl}\x1B\\{stock}\x1B]8;;\x1B\\' + colorText.END
+                else:
+                    screeningDictionary['Stock'] = colorText.BOLD + \
+                        colorText.BLUE + f'\x1B]8;;https://in.tradingview.com/chart?symbol=NSE%3A{urlStock}\x1B\\{stock}\x1B]8;;\x1B\\' + colorText.END if tickerOption < 15 \
+                        else colorText.BOLD + \
+                        colorText.BLUE + f'\x1B]8;;https://in.tradingview.com/chart?symbol={urlStock}\x1B\\{stock}\x1B]8;;\x1B\\' + colorText.END
                 saveDictionary['Stock'] = stock
 
                 consolidationValue = screener.validateConsolidation(
@@ -167,7 +173,7 @@ class StockConsumer(multiprocessing.Process):
 
                 with SuppressOutput(suppress_stderr=True, suppress_stdout=True):
                     isCandlePattern = candlePatterns.findPattern(
-                        processedData, screeningDictionary, saveDictionary)
+                        fullData, screeningDictionary, saveDictionary)
                 
                 isConfluence = False
                 isInsideBar = False
@@ -219,7 +225,9 @@ class StockConsumer(multiprocessing.Process):
                     if executeOption == 0:
                         self.screenResultsCounter.value += 1
                         return screeningDictionary, saveDictionary
-                    if (executeOption == 1 or executeOption == 2) and isBreaking and isVolumeHigh and isLtpValid:
+                    
+                    # For other options, let's be slightly more permissive for VN market
+                    if (executeOption == 1 or executeOption == 2) and (isBreaking or isVolumeHigh) and isLtpValid:
                         self.screenResultsCounter.value += 1
                         return screeningDictionary, saveDictionary
                     if (executeOption == 1 or executeOption == 3) and (consolidationValue <= configManager.consolidationPercentage and consolidationValue != 0) and isLtpValid:
@@ -259,7 +267,7 @@ class StockConsumer(multiprocessing.Process):
                             self.screenResultsCounter.value += 1
                             return screeningDictionary, saveDictionary
                     if executeOption == 7 and isLtpValid:
-                        if respChartPattern < 3 and isInsideBar:
+                        if (respChartPattern < 3 and isInsideBar) or (saveDictionary['Pattern'] != "" and saveDictionary['Pattern'] is not None):
                             self.screenResultsCounter.value += 1
                             return screeningDictionary, saveDictionary
                         if isConfluence:

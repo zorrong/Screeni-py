@@ -147,72 +147,99 @@ class tools:
 
     def fetchStockData(self, stockCode, period, duration, proxyServer, screenResultsCounter, screenCounter, totalSymbols, backtestDate=None, printCounter=False, tickerOption=None):
         dateDict = None
-        with SuppressOutput(suppress_stdout=True, suppress_stderr=True):
-            # Default to DNSE for individual stocks (unless it's Crypto or sectoral indices)
-            if tickerOption != 18 and tickerOption != 16:
-                try:
-                    dates = self._getBacktestDate(backtest=backtestDate)
-                    # Convert date to datetime to get timestamp
-                    import datetime as dt
-                    start_dt = dt.datetime.combine(dates[0], dt.time.min)
-                    end_dt = dt.datetime.combine(dates[1], dt.time.max)
-                    start_ts = int(start_dt.timestamp())
-                    end_ts = int(end_dt.timestamp())
-                    url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol={stockCode}&resolution=1D"
-                    res = requests.get(url, timeout=10)
-                    json_data = res.json()
-                    
-                    if json_data.get('s') == 'ok':
-                        data = pd.DataFrame({
-                            'Date': json_data['t'],
-                            'Open': json_data['o'],
-                            'High': json_data['h'],
-                            'Low': json_data['l'],
-                            'Close': json_data['c'],
-                            'Volume': json_data['v']
-                        })
-                        data['Date'] = pd.to_datetime(data['Date'], unit='s')
-                        data['Adj Close'] = data['Close']
-                        data.set_index('Date', inplace=True)
-                    else:
-                        data = pd.DataFrame()
-                except Exception as e:
-                    # print(f"Error fetching DNSE data for {stockCode}: {e}")
-                    data = pd.DataFrame()
-
-            elif tickerOption == 18:
-                try:
-                    exchange = ccxt.binance()
-                    timeframe = '1d'
-                    if 'm' in duration: timeframe = duration
-                    elif 'h' in duration: timeframe = duration
-                    
-                    ohlcv = exchange.fetch_ohlcv(stockCode, timeframe, limit=1000)
-                    data = pd.DataFrame(ohlcv, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
-                    data['Date'] = pd.to_datetime(data['Date'], unit='ms')
+        # Default to DNSE for individual stocks (unless it's Crypto or sectoral indices)
+        if tickerOption != 18 and tickerOption != 16:
+            try:
+                import datetime as dt
+                if backtestDate is None:
+                        backtestDate = dt.date.today()
+                
+                dates = self._getBacktestDate(backtest=backtestDate)
+                if backtestDate == dt.date.today():
+                        start_dt = dt.datetime.now() - dt.timedelta(days=400) # Get plenty of data
+                        end_dt = dt.datetime.now()
+                else:
+                        start_dt = dt.datetime.combine(dates[0], dt.time.min)
+                        end_dt = dt.datetime.combine(dates[1], dt.time.max)
+                
+                # IMPORTANT: DNSE API might fail if end_ts is in the future
+                # We use yesterday as end date to be absolutely safe
+                start_ts = int(start_dt.timestamp())
+                end_ts = int(dt.datetime.now().timestamp() - 86400) # Subtract 24 hours
+                url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol={stockCode}&resolution=1D"
+                # print(f"[DEBUG] DNSE URL: {url}")
+                
+                session = requests.Session()
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+                    'Origin': 'https://banggia.dnse.com.vn',
+                    'Referer': 'https://banggia.dnse.com.vn/',
+                    'Connection': 'keep-alive'
+                }
+                res = session.get(url, headers=headers, timeout=15, verify=False)
+                json_data = res.json()
+                
+                if isinstance(json_data, dict) and 't' in json_data and len(json_data['t']) > 0:
+                    data = pd.DataFrame({
+                        'Date': json_data['t'],
+                        'Open': json_data['o'],
+                        'High': json_data['h'],
+                        'Low': json_data['l'],
+                        'Close': json_data['c'],
+                        'Volume': json_data['v']
+                    })
+                    data['Date'] = pd.to_datetime(data['Date'], unit='s')
                     data['Adj Close'] = data['Close']
                     data.set_index('Date', inplace=True)
-                except Exception as e:
+                    # Only drop if Close is NaN to avoid total data loss
+                    data.dropna(subset=['Close'], inplace=True)
+                    # Filter to only keep data up to backtest date if applicable
+                    if backtestDate != dt.date.today():
+                        data = data[data.index.date <= backtestDate]
+                else:
                     data = pd.DataFrame()
+            except Exception as e:
+                # print(f"Error fetching DNSE data for {stockCode}: {e}")
+                data = pd.DataFrame()
 
-            else:
-                data = yf.download(
-                    tickers=stockCode,
-                    period=period,
-                    interval=duration,
-                    progress=False,
-                    timeout=10,
-                    start=self._getBacktestDate(backtest=backtestDate)[0],
-                    end=self._getBacktestDate(backtest=backtestDate)[1],
-                    auto_adjust=False
-                )
+        elif tickerOption == 18:
+            try:
+                exchange = ccxt.binance()
+                timeframe = '1d'
+                if 'm' in duration: timeframe = duration
+                elif 'h' in duration: timeframe = duration
+                
+                ohlcv = exchange.fetch_ohlcv(stockCode, timeframe, limit=1000)
+                data = pd.DataFrame(ohlcv, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
+                data['Date'] = pd.to_datetime(data['Date'], unit='ms')
+                data['Adj Close'] = data['Close']
+                data.set_index('Date', inplace=True)
+            except Exception as e:
+                data = pd.DataFrame()
+
+        else:
+            data = yf.download(
+                tickers=stockCode,
+                period=period,
+                interval=duration,
+                progress=False,
+                timeout=10,
+                start=self._getBacktestDate(backtest=backtestDate)[0],
+                end=self._getBacktestDate(backtest=backtestDate)[1],
+                auto_adjust=False
+            )
             # For df backward compatibility towards yfinance 0.2.32
             data = self.makeDataBackwardCompatible(data)
             # end
+            if backtestDate is None:
+                backtestDate = datetime.date.today()
+                
             if backtestDate != datetime.date.today():
                 dateDict = self._getDatesForBacktestReport(backtest=backtestDate)
                 backtestData = yf.download(
-                    tickers=stockCode,
+                    tickers=stockCode + ".VN" if tickerOption == 12 else stockCode,
                     interval='1d',
                     progress=False,
                     timeout=10,
