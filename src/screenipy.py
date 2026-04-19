@@ -366,8 +366,8 @@ def main(testing=False, testBuild=False, downloadOnly=False, execute_inputs:list
                 input('')
             sys.exit(0)
 
-        if not Utility.tools.isTradingTime() and configManager.cacheEnabled and not loadedStockData and not testing and not Utility.tools.isBacktesting(backtestDate=backtestDate):
-            Utility.tools.loadStockData(stockDict, configManager, proxyServer)
+        if not Utility.tools.isTradingTime(tickerOption=tickerOption) and configManager.cacheEnabled and not loadedStockData and not testing and not Utility.tools.isBacktesting(backtestDate=backtestDate):
+            Utility.tools.loadStockData(stockDict, configManager, proxyServer, tickerOption=tickerOption)
             loadedStockData = True
         loadCount = len(stockDict)
 
@@ -496,11 +496,11 @@ def main(testing=False, testBuild=False, downloadOnly=False, execute_inputs:list
 
         print(colorText.BOLD + colorText.GREEN +
                   f"[+] Found {len(screenResults)} Stocks." + colorText.END)
-        if configManager.cacheEnabled and not Utility.tools.isTradingTime() and not testing and not Utility.tools.isBacktesting(backtestDate=backtestDate):
+        if configManager.cacheEnabled and not Utility.tools.isTradingTime(tickerOption=tickerOption) and not testing and not Utility.tools.isBacktesting(backtestDate=backtestDate):
             print(colorText.BOLD + colorText.GREEN +
                   "[+] Caching Stock Data for future use, Please Wait... " + colorText.END, end='')
             Utility.tools.saveStockData(
-                stockDict, configManager, loadCount)
+                stockDict, configManager, loadCount, tickerOption=tickerOption)
 
         Utility.tools.setLastScreenedResults(screenResults)
         Utility.tools.setLastScreenedResults(saveResults, unformatted=True)

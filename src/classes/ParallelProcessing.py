@@ -63,7 +63,7 @@ class StockConsumer(multiprocessing.Process):
 
     def screenStocks(self, tickerOption, executeOption, reversalOption, maLength, daysForLowestVolume, minRSI, maxRSI, respChartPattern, insideBarToLookback, totalSymbols,
                      configManager, fetcher, screener:Screener.tools, candlePatterns, stock, newlyListedOnly, downloadOnly, vectorSearch, isDevVersion, backtestDate, printCounter=False):
-        isDevVersion = True # Forced for debugging VN market integration
+        isDevVersion = False # Forced for debugging VN market integration
         screenResults = pd.DataFrame(columns=[
             'Stock', 'Consolidating', 'Breaking-Out', 'MA-Signal', 'Volume', 'LTP', 'RSI', 'Trend', 'Pattern'])
         screeningDictionary = {'Stock': "", 'Consolidating': "",  'Breaking-Out': "",

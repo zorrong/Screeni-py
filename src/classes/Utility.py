@@ -98,19 +98,23 @@ class tools:
             print(colorText.BOLD + colorText.FAIL +
                   '[+] Failed to load recently screened result table from disk! Skipping..' + colorText.END)
 
-    def isTradingTime():
+    def isTradingTime(tickerOption=None):
+        if tickerOption == 18: # Crypto is 24/7
+            return False
         curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
         openTime = curr.replace(hour=9, minute=0)
         closeTime = curr.replace(hour=15, minute=0)
         return ((openTime <= curr <= closeTime) and (0 <= curr.weekday() <= 4))
 
-    def isClosingHour():
+    def isClosingHour(tickerOption=None):
+        if tickerOption == 18:
+            return True
         curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
         openTime = curr.replace(hour=15, minute=00)
         closeTime = curr.replace(hour=15, minute=30)
         return ((openTime <= curr <= closeTime) and (0 <= curr.weekday() <= 4))
 
-    def saveStockData(stockDict, configManager, loadCount):
+    def saveStockData(stockDict, configManager, loadCount, tickerOption=None):
         curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
         openTime = curr.replace(hour=9, minute=0)
         cache_date = datetime.date.today()  # for monday to friday
@@ -122,8 +126,12 @@ class tools:
         if weekday == 5 or weekday == 6:  # for saturday and sunday
             cache_date = datetime.datetime.today() - datetime.timedelta(days=weekday - 4)
         cache_date = cache_date.strftime("%d%m%y")
-        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', 'stock_data_140823.pkl')
-        # configManager.deleteStockData(excludeFile=cache_file)
+        
+        prefix = "stock_data_"
+        if tickerOption == 18:
+            prefix = "crypto_data_"
+        
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', f'{prefix}{cache_date}.pkl')
 
         if not os.path.exists(cache_file) or len(stockDict) > (loadCount+1):
             # Ensure directory exists
@@ -140,7 +148,7 @@ class tools:
             print(colorText.BOLD + colorText.GREEN +
                   "=> Already Cached." + colorText.END)
 
-    def loadStockData(stockDict, configManager, proxyServer=None):
+    def loadStockData(stockDict, configManager, proxyServer=None, tickerOption=None):
         curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
         openTime = curr.replace(hour=9, minute=0)
         last_cached_date = datetime.date.today()  # for monday to friday after 3:30
@@ -151,7 +159,13 @@ class tools:
             last_cached_date = datetime.datetime.today() - datetime.timedelta(days=weekday - 4)
         if weekday == 0 and curr < openTime:  # for monday before 9:00
             last_cached_date = datetime.datetime.today() - datetime.timedelta(3)
-        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', 'stock_data_140823.pkl')
+        last_cached_date = last_cached_date.strftime("%d%m%y")
+
+        prefix = "stock_data_"
+        if tickerOption == 18:
+            prefix = "crypto_data_"
+
+        cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', f'{prefix}{last_cached_date}.pkl')
         if os.path.exists(cache_file):
             with open(cache_file, 'rb') as f:
                 try:

@@ -282,12 +282,13 @@ class tools:
         try:
             end_ts = int(dt.datetime.now().timestamp())
             start_ts = end_ts - (86400 * 40) # 40 days
-            url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol=VNINDEX&resolution=1D"
+            url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol=VNI&resolution=1D"
             headers = {'User-Agent': 'Mozilla/5.0'}
             res = requests.get(url, headers=headers, timeout=10, verify=False)
             if res.status_code == 200:
                 json_data = res.json()
-                if 't' in json_data:
+                print(f"[DEBUG] DNSE Response Keys: {json_data.keys()}")
+                if 't' in json_data and len(json_data['t']) > 0:
                     df_vn = pd.DataFrame({
                         'Date': json_data['t'],
                         'Open': json_data['o'],
@@ -299,6 +300,9 @@ class tools:
                     })
                     df_vn['Date'] = pd.to_datetime(df_vn['Date'], unit='s').dt.date
                     df_vn.set_index('Date', inplace=True)
+                    print(f"[DEBUG] VNINDEX Data Loaded: {len(df_vn)} rows")
+                else:
+                    print(colorText.BOLD + colorText.FAIL + "[!] DNSE returned no data for VNI!" + colorText.END)
         except Exception as e:
             print(f"Error fetching VNINDEX from DNSE: {e}")
 

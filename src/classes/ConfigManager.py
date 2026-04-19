@@ -143,15 +143,28 @@ class tools:
     def getConfig(self, parser):
         if len(parser.read('screenipy.ini')):
             try:
-                self.duration = parser.get('config', 'duration')
-                self.period = parser.get('config', 'period')
-                self.minLTP = float(parser.get('config', 'minprice'))
-                self.maxLTP = float(parser.get('config', 'maxprice'))
-                self.volumeRatio = float(parser.get('config', 'volumeRatio'))
-                self.consolidationPercentage = float(
-                    parser.get('config', 'consolidationPercentage'))
-                self.daysToLookback = int(
-                    parser.get('config', 'daysToLookback'))
+                self.duration = parser.get('config', 'duration') if parser.get('config', 'duration') != '' else '1d'
+                self.period = parser.get('config', 'period') if parser.get('config', 'period') != '' else '300d'
+                try:
+                    self.minLTP = float(parser.get('config', 'minprice'))
+                except:
+                    self.minLTP = 20.0
+                try:
+                    self.maxLTP = float(parser.get('config', 'maxprice'))
+                except:
+                    self.maxLTP = 50000.0
+                try:
+                    self.volumeRatio = float(parser.get('config', 'volumeRatio'))
+                except:
+                    self.volumeRatio = 2.5
+                try:
+                    self.consolidationPercentage = float(parser.get('config', 'consolidationPercentage'))
+                except:
+                    self.consolidationPercentage = 10.0
+                try:
+                    self.daysToLookback = int(parser.get('config', 'daysToLookback'))
+                except:
+                    self.daysToLookback = 20
                 if 'n' not in str(parser.get('config', 'shuffle')).lower():
                     self.shuffleEnabled = True
                 if 'n' not in str(parser.get('config', 'cachestockdata')).lower():

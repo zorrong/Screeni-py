@@ -564,7 +564,7 @@ class tools:
     # Validate Lorentzian Classification signal  
     def validateLorentzian(self, data, screenDict, saveDict, lookFor=1):
         # lookFor: 1-Any, 2-Buy, 3-Sell
-        if len(data) < 30:
+        if len(data) < 75:
             return False
         data = data[::-1]               # Reverse the dataframe
         data = data.rename(columns={'Open':'open', 'Close':'close', 'High':'high', 'Low':'low', 'Volume':'volume'})
