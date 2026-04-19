@@ -93,10 +93,14 @@ def initExecution():
      S > Search for Similar Stocks (forming Similar Chart Pattern)
 
      0 > Screen stocks by the stock names (Vietnam Stock Code)
-    12 > All Vietnam Stocks (Default)
+    12 > All Vietnam Stocks (Source: DNSE)
+    13 > All Vietnam Stocks (Source: SSI)
+    14 > All Vietnam Stocks (Source: VCI)
     16 > Vietnam Sectoral Indices
-    18 > Crypto (CCXT)
-    Enter > All Vietnam Stocks ''' + colorText.END
+    18 > Crypto (Source: Binance)
+    19 > Crypto (Source: Bybit)
+    20 > Crypto (Source: OKX)
+    Enter > All Vietnam Stocks (DNSE) ''' + colorText.END
           )
     try:
         tickerOption = input(

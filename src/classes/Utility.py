@@ -99,7 +99,7 @@ class tools:
                   '[+] Failed to load recently screened result table from disk! Skipping..' + colorText.END)
 
     def isTradingTime(tickerOption=None):
-        if tickerOption == 18: # Crypto is 24/7
+        if tickerOption in [18, 19, 20]: # Crypto is 24/7
             return False
         curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
         openTime = curr.replace(hour=9, minute=0)
@@ -107,7 +107,7 @@ class tools:
         return ((openTime <= curr <= closeTime) and (0 <= curr.weekday() <= 4))
 
     def isClosingHour(tickerOption=None):
-        if tickerOption == 18:
+        if tickerOption in [18, 19, 20]:
             return True
         curr = datetime.datetime.now(pytz.timezone('Asia/Ho_Chi_Minh'))
         openTime = curr.replace(hour=15, minute=00)
@@ -128,8 +128,8 @@ class tools:
         cache_date = cache_date.strftime("%d%m%y")
         
         prefix = "stock_data_"
-        if tickerOption == 18:
-            prefix = "crypto_data_"
+        if tickerOption in [18, 19, 20]:
+            prefix = f"crypto_{tickerOption}_data_"
         
         cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', f'{prefix}{cache_date}.pkl')
 
@@ -162,8 +162,8 @@ class tools:
         last_cached_date = last_cached_date.strftime("%d%m%y")
 
         prefix = "stock_data_"
-        if tickerOption == 18:
-            prefix = "crypto_data_"
+        if tickerOption in [18, 19, 20]:
+            prefix = f"crypto_{tickerOption}_data_"
 
         cache_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'actions-data-download', f'{prefix}{last_cached_date}.pkl')
         if os.path.exists(cache_file):

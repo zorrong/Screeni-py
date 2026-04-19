@@ -19,6 +19,9 @@ import json
 from classes.ColorText import colorText
 from classes.SuppressOutput import SuppressOutput
 from classes.Utility import isDocker
+import asyncio
+# Add pnfTradingAPI_Py to path
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'pnfTradingAPI_Py'))
 
 # Suppress SSL warnings
 import urllib3
@@ -37,7 +40,99 @@ class tools:
 
     def __init__(self, configManager):
         self.configManager = configManager
-        pass
+        self._loadAdapters()
+
+    def _loadAdapters(self):
+        try:
+             # Just check if path exists or we can find the package
+            adapter_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'pnfTradingAPI_Py', 'adapters')
+            if os.path.exists(adapter_path):
+                self.multiSourceAvailable = True
+            else:
+                self.multiSourceAvailable = False
+        except Exception:
+            self.multiSourceAvailable = False
+
+    def _fetchFromAdapter(self, adapter_type, symbol, **kwargs):
+        try:
+            # Dynamic import inside the method to avoid pickling issues in multiprocessing
+            sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'pnfTradingAPI_Py'))
+            from adapters import dnse, ssi, vci, binance, bybit, okx
+            
+            adapters = {
+                'dnse': dnse,
+                'ssi': ssi,
+                'vci': vci,
+                'binance': binance,
+                'bybit': bybit,
+                'okx': okx
+            }
+            adapter = adapters.get(adapter_type)
+            if not adapter:
+                return []
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            if adapter_type == 'dnse':
+                res = loop.run_until_complete(adapter.fetch_dnse_ohlcv(symbol, **kwargs))
+            elif adapter_type == 'ssi':
+                res = loop.run_until_complete(adapter.fetch_ssi_daily_ohlcv(symbol, **kwargs))
+            elif adapter_type == 'vci':
+                res = loop.run_until_complete(adapter.fetch_vci_ohlcv(symbol, **kwargs))
+            elif adapter_type == 'binance':
+                res = loop.run_until_complete(adapter.fetch_binance_ohlcv(symbol, **kwargs))
+            elif adapter_type == 'bybit':
+                res = loop.run_until_complete(adapter.fetch_bybit_ohlcv(symbol, **kwargs))
+            elif adapter_type == 'okx':
+                # OKX usually needs BASE-QUOTE
+                s = symbol.replace("/", "-")
+                res = loop.run_until_complete(adapter.fetch_okx_ohlcv(s, **kwargs))
+            else:
+                res = []
+                
+            loop.close()
+            return res
+        except Exception as e:
+            # print(f"Error fetching from adapter {adapter_type}: {e}")
+            return []
+
+    def fetchMultiSourceData(self, symbol, source='dnse', period='300d', duration='1d', backtestDate=None):
+        if not self.multiSourceAvailable:
+            return pd.DataFrame()
+            
+        data_list = []
+        if source == 'dnse':
+            data_list = self._fetchFromAdapter('dnse', symbol, resolution="1D", days=1000)
+        elif source == 'ssi':
+            data_list = self._fetchFromAdapter('ssi', symbol)
+        elif source == 'vci':
+            data_list = self._fetchFromAdapter('vci', symbol)
+        elif source == 'binance':
+            # Convert BTC/USDT to BTCUSDT
+            s = symbol.replace("/", "").upper()
+            data_list = self._fetchFromAdapter('binance', s, interval='1d', limit=1000)
+        elif source == 'bybit':
+            s = symbol.replace("/", "").upper()
+            data_list = self._fetchFromAdapter('bybit', s, interval='1d', limit=1000)
+        elif source == 'okx':
+            s = symbol.replace("/", "-").upper()
+            data_list = self._fetchFromAdapter('okx', s, interval='1d', limit=300)
+            
+        if not data_list:
+            return pd.DataFrame()
+            
+        df = pd.DataFrame(data_list)
+        df['Date'] = pd.to_datetime(df['time'])
+        df.rename(columns={'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
+        df['Adj Close'] = df['Close']
+        df.set_index('Date', inplace=True)
+        df.drop(columns=['time'], inplace=True)
+        
+        if backtestDate:
+            df = df[df.index.date <= backtestDate]
+            
+        return df
 
     def getAllNiftyIndices(self) -> dict:
         return {
@@ -86,23 +181,54 @@ class tools:
 
     def fetchCodes(self, tickerOption,proxyServer=None):
         listStockCodes = []
-        if tickerOption == 12: # ALL Vietnam Stocks
+        if tickerOption in [12, 13, 14]: # Vietnam Stocks
             try:
-                # Use local JSON list saved from DNSE/vnstock previously
+                # Primary: Try to fetch fresh list if it's SSI/VCI and multiSource is available
+                if tickerOption == 13 and self.multiSourceAvailable:
+                     # Dynamic import for fetcher
+                     sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'pnfTradingAPI_Py'))
+                     from adapters import ssi
+                     loop = asyncio.new_event_loop()
+                     asyncio.set_event_loop(loop)
+                     res = loop.run_until_complete(ssi.fetch_ssi_securities_list())
+                     loop.close()
+                     if res:
+                         return [r.get('Symbol') for r in res if r.get('Symbol')]
+                
+                # Fallback to local JSON list
                 with open(os.path.join(os.path.dirname(__file__), 'vietnam_stocks.json'), 'r') as f:
                     return json.load(f)
             except Exception as e:
-                print(f"Error loading vietnam_stocks.json: {e}")
+                print(f"Error loading stocks list: {e}")
                 return []
         if tickerOption == 16:
             return self.getAllNiftyIndices()
-        if tickerOption == 18:
+        if tickerOption in [18, 19, 20]:
             try:
-                # ccxt - binance top pairs
-                exchange = ccxt.binance()
-                markets = exchange.load_markets()
-                symbols = [symbol for symbol in markets if symbol.endswith('/USDT')]
-                return symbols
+                # Use multi-source adapter if available
+                if self.multiSourceAvailable:
+                    sys.path.append(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'pnfTradingAPI_Py'))
+                    from adapters import binance, bybit, okx
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    if tickerOption == 18:
+                        res = loop.run_until_complete(binance.fetch_binance_symbols())
+                    elif tickerOption == 19:
+                        res = loop.run_until_complete(bybit.fetch_bybit_symbols())
+                    elif tickerOption == 20:
+                        res = loop.run_until_complete(okx.fetch_okx_symbols())
+                    loop.close()
+                    if res:
+                        # Convert BASE-QUOTE to BASE/QUOTE for general CCXT compatibility if needed
+                        return [r.replace("-", "/") for r in res if "USDT" in r]
+                
+                # Fallback to ccxt - binance top pairs for option 18
+                if tickerOption == 18:
+                    exchange = ccxt.binance()
+                    markets = exchange.load_markets()
+                    symbols = [symbol for symbol in markets if symbol.endswith('/USDT')]
+                    return symbols
+                return []
             except Exception as e:
                 print(e)
                 return []
@@ -151,75 +277,95 @@ class tools:
 
     def fetchStockData(self, stockCode, period, duration, proxyServer, screenResultsCounter, screenCounter, totalSymbols, backtestDate=None, printCounter=False, tickerOption=None):
         dateDict = None
-        # Default to DNSE for individual stocks (unless it's Crypto or sectoral indices)
-        if tickerOption != 18 and tickerOption != 16:
+        # Default to DNSE/SSI/VCI for individual stocks
+        if tickerOption in [12, 13, 14, 16]:
+            source_map = {12: 'dnse', 13: 'ssi', 14: 'vci', 16: 'dnse'} # sectoral index 16 also DNSE
+            source = source_map.get(tickerOption, 'dnse')
+            
             try:
-                import datetime as dt
-                if backtestDate is None:
-                        backtestDate = dt.date.today()
+                # Try new multi-source first if available
+                if self.multiSourceAvailable:
+                    data = self.fetchMultiSourceData(stockCode, source=source, backtestDate=backtestDate)
+                    if not data.empty:
+                        return data
                 
-                dates = self._getBacktestDate(backtest=backtestDate)
-                if backtestDate == dt.date.today():
-                        start_dt = dt.datetime.now() - dt.timedelta(days=400) # Get plenty of data
-                        end_dt = dt.datetime.now()
-                else:
-                        start_dt = dt.datetime.combine(dates[0], dt.time.min)
-                        end_dt = dt.datetime.combine(dates[1], dt.time.max)
-                
-                # IMPORTANT: DNSE API might fail if end_ts is in the future
-                # We use yesterday as end date to be absolutely safe
-                start_ts = int(start_dt.timestamp())
-                end_ts = int(dt.datetime.now().timestamp() - 86400) # Subtract 24 hours
-                url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/stock?from={start_ts}&to={end_ts}&symbol={stockCode}&resolution=1D"
-                # print(f"[DEBUG] DNSE URL: {url}")
-                
-                session = requests.Session()
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json, text/plain, */*',
-                    'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
-                    'Origin': 'https://banggia.dnse.com.vn',
-                    'Referer': 'https://banggia.dnse.com.vn/',
-                    'Connection': 'keep-alive'
-                }
-                res = session.get(url, headers=headers, timeout=15, verify=False)
-                json_data = res.json()
-                
-                if isinstance(json_data, dict) and 't' in json_data and len(json_data['t']) > 0:
-                    data = pd.DataFrame({
-                        'Date': json_data['t'],
-                        'Open': json_data['o'],
-                        'High': json_data['h'],
-                        'Low': json_data['l'],
-                        'Close': json_data['c'],
-                        'Volume': json_data['v']
-                    })
-                    data['Date'] = pd.to_datetime(data['Date'], unit='s')
-                    data['Adj Close'] = data['Close']
-                    data.set_index('Date', inplace=True)
-                    # Only drop if Close is NaN to avoid total data loss
-                    data.dropna(subset=['Close'], inplace=True)
-                    # Filter to only keep data up to backtest date if applicable
-                    if backtestDate != dt.date.today():
-                        data = data[data.index.date <= backtestDate]
+                # Legacy fallback for DNSE if option 12 or 16
+                if tickerOption == 12 or tickerOption == 16:
+                    import datetime as dt
+                    if backtestDate is None:
+                            backtestDate = dt.date.today()
+                    
+                    dates = self._getBacktestDate(backtest=backtestDate)
+                    if backtestDate == dt.date.today():
+                            start_dt = dt.datetime.now() - dt.timedelta(days=400) # Get plenty of data
+                            end_dt = dt.datetime.now()
+                    else:
+                            start_dt = dt.datetime.combine(dates[0], dt.time.min)
+                            end_dt = dt.datetime.combine(dates[1], dt.time.max)
+                    
+                    start_ts = int(start_dt.timestamp())
+                    end_ts = int(dt.datetime.now().timestamp() - 86400) # Subtract 24 hours
+                    market_type = "index" if tickerOption == 16 else "stock"
+                    url = f"https://api.dnse.com.vn/chart-api/v2/ohlcs/{market_type}?from={start_ts}&to={end_ts}&symbol={stockCode}&resolution=1D"
+                    
+                    session = requests.Session()
+                    headers = {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json, text/plain, */*',
+                        'Accept-Language': 'en-US,en;q=0.9,vi;q=0.8',
+                        'Origin': 'https://banggia.dnse.com.vn',
+                        'Referer': 'https://banggia.dnse.com.vn/',
+                        'Connection': 'keep-alive'
+                    }
+                    res = session.get(url, headers=headers, timeout=15, verify=False)
+                    json_data = res.json()
+                    
+                    if isinstance(json_data, dict) and 't' in json_data and len(json_data['t']) > 0:
+                        data = pd.DataFrame({
+                            'Date': json_data['t'],
+                            'Open': json_data['o'],
+                            'High': json_data['h'],
+                            'Low': json_data['l'],
+                            'Close': json_data['c'],
+                            'Volume': json_data['v']
+                        })
+                        data['Date'] = pd.to_datetime(data['Date'], unit='s')
+                        data['Adj Close'] = data['Close']
+                        data.set_index('Date', inplace=True)
+                        data.dropna(subset=['Close'], inplace=True)
+                        if backtestDate != dt.date.today():
+                            data = data[data.index.date <= backtestDate]
+                    else:
+                        data = pd.DataFrame()
                 else:
                     data = pd.DataFrame()
             except Exception as e:
-                # print(f"Error fetching DNSE data for {stockCode}: {e}")
                 data = pd.DataFrame()
 
-        elif tickerOption == 18:
+        elif tickerOption in [18, 19, 20]:
+            source_map = {18: 'binance', 19: 'bybit', 20: 'okx'}
+            source = source_map.get(tickerOption, 'binance')
             try:
-                exchange = ccxt.binance()
-                timeframe = '1d'
-                if 'm' in duration: timeframe = duration
-                elif 'h' in duration: timeframe = duration
+                # Try new multi-source first
+                if self.multiSourceAvailable:
+                    data = self.fetchMultiSourceData(stockCode, source=source, backtestDate=backtestDate)
+                    if not data.empty:
+                        return data
                 
-                ohlcv = exchange.fetch_ohlcv(stockCode, timeframe, limit=1000)
-                data = pd.DataFrame(ohlcv, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
-                data['Date'] = pd.to_datetime(data['Date'], unit='ms')
-                data['Adj Close'] = data['Close']
-                data.set_index('Date', inplace=True)
+                # Fallback to ccxt for Binance (option 18)
+                if tickerOption == 18:
+                    exchange = ccxt.binance()
+                    timeframe = '1d'
+                    if 'm' in duration: timeframe = duration
+                    elif 'h' in duration: timeframe = duration
+                    
+                    ohlcv = exchange.fetch_ohlcv(stockCode, timeframe, limit=1000)
+                    data = pd.DataFrame(ohlcv, columns=['Date', 'Open', 'High', 'Low', 'Close', 'Volume'])
+                    data['Date'] = pd.to_datetime(data['Date'], unit='ms')
+                    data['Adj Close'] = data['Close']
+                    data.set_index('Date', inplace=True)
+                else:
+                    data = pd.DataFrame()
             except Exception as e:
                 data = pd.DataFrame()
 
